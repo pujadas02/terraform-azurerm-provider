@@ -1,0 +1,7 @@
+# .github/dependabot.yml
+version: 2
+updates:
+  - package-ecosystem: "terraform"
+    directory: "/"  # Path to the directory containing your Terraform files
+    schedule:
+      interval: "daily"  # You can set this to "daily", "weekly", or "monthly"
