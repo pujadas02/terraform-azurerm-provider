@@ -1,0 +1,25 @@
+name: Terraform Plan and Apply
+
+on:
+  push:
+    paths:
+      - 'modules/azurerm-provider/**'
+      - 'main.tf'
+      - 'provider.tf'
+
+jobs:
+  terraform:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v1
+
+      - name: Run Terraform Init
+        run: terraform init
+
+      - name: Run Terraform Apply
+        run: terraform apply -auto-approve
