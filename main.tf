@@ -3,7 +3,7 @@ terraform {
   required_providers {
     azurerm = {
       source  = "hashicorp/azurerm"
-      version = "~> 4.17.0"  # Pinning the version to avoid accidental upgrades
+      version = "~> 4.20.0"  # Pinning the version to avoid accidental upgrades
     }
   }
   required_version = ">= 1.3.0"
