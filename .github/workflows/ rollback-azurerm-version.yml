@@ -1,12 +1,7 @@
-name: Manual Rollback Azurerm Version
+name: Auto Rollback Azurerm Version
 
 on:
-  workflow_dispatch:
-    inputs:
-      previous_version:
-        description: 'Enter the previous azurerm version to revert to'
-        required: true
-        type: string
+  workflow_dispatch:  # Trigger manually
 
 jobs:
   rollback:
@@ -16,22 +11,80 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v2
 
-      - name: Revert azurerm version
+      - name: Get previous commit where azurerm version was updated
+        id: get_previous_commit
         run: |
-          # Modify main.tf to revert azurerm version
-          echo "Reverting azurerm version to ${{ github.event.inputs.previous_version }}"
-          
-          # Use sed to find the version line in main.tf and replace it with the provided version
-          sed -i 's/version = "~> .*/version = "~> ${{ github.event.inputs.previous_version }}"/' main.tf
+          # Find the commit where the azurerm version was last updated
+          PREV_COMMIT=$(git log --grep='azurerm' --format='%H' -n 1)
+          echo "Previous commit: $PREV_COMMIT"
+          echo "::set-output name=prev_commit::$PREV_COMMIT"
 
-      - name: Commit changes
+      - name: Checkout the previous commit
+        run: |
+          git checkout ${{ steps.get_previous_commit.outputs.prev_commit }}
+
+      - name: Get the azurerm version from the previous commit
+        id: get_prev_version
+        run: |
+          # Extract the azurerm version from main.tf
+          PREV_VERSION=$(grep 'version = "~>' main.tf | sed 's/.*~> \(.*\)"/\1/')
+          echo "Previous azurerm version: $PREV_VERSION"
+          echo "::set-output name=prev_version::$PREV_VERSION"
+
+      - name: Revert to the previous azurerm version
+        run: |
+          # Update main.tf with the previous version of azurerm
+          sed -i 's/version = "~> .*/version = "~> ${{ steps.get_prev_version.outputs.prev_version }}"/' main.tf
+
+      - name: Commit the changes
         run: |
           git config --global user.name "GitHub Actions"
           git config --global user.email "actions@github.com"
           
-          # Commit the change
+          # Commit the reverted version
           git add main.tf
-          git commit -m "Revert azurerm version to ${{ github.event.inputs.previous_version }}"
+          git commit -m "Revert azurerm version to ${{ steps.get_prev_version.outputs.prev_version }}"
           
-          # Push changes using GITHUB_TOKEN for authentication
+          # Push changes back to the repository
           git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }} HEAD:main
+
+
+
+
+# name: Manual Rollback Azurerm Version
+
+# on:
+#   workflow_dispatch:
+#     inputs:
+#       previous_version:
+#         description: 'Enter the previous azurerm version to revert to'
+#         required: true
+#         type: string
+
+# jobs:
+#   rollback:
+#     runs-on: ubuntu-latest
+
+#     steps:
+#       - name: Checkout repository
+#         uses: actions/checkout@v2
+
+#       - name: Revert azurerm version
+#         run: |
+#           # Modify main.tf to revert azurerm version
+#           echo "Reverting azurerm version to ${{ github.event.inputs.previous_version }}"
+          
+#           # Use sed to find the version line in main.tf and replace it with the provided version
+#           sed -i 's/version = "~> .*/version = "~> ${{ github.event.inputs.previous_version }}"/' main.tf
+
+#       - name: Commit changes
+#         run: |
+#           git config --global user.name "GitHub Actions"
+#           git config --global user.email "actions@github.com"
+          
+#           # Commit the change
+#           git add main.tf
+#           git commit -m "Revert azurerm version to ${{ github.event.inputs.previous_version }}"
+          
+#           # Push changes using GITHUB_TOKEN for authentication
+#           git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }} HEAD:main
