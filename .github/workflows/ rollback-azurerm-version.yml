@@ -11,46 +11,64 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v2
 
-      - name: Get previous commit where azurerm version was updated
-        id: get_previous_commit
+      - name: Find the previous commit where azurerm version was updated
+        id: find_previous_commit
         run: |
-          # Find the commit where the azurerm version was last updated
-          PREV_COMMIT=$(git log --grep='azurerm' --format='%H' -n 1)
-          echo "Previous commit: $PREV_COMMIT"
-          echo "::set-output name=prev_commit::$PREV_COMMIT"
+          # Initialize variables
+          prev_commit=""
+          prev_version=""
+          
+          # Loop through the commit history until we find a commit with an azurerm version change
+          for commit in $(git log --reverse --grep='azurerm' --format='%H'); do
+            echo "Checking commit: $commit"
+            
+            # Checkout each commit
+            git checkout $commit
+            
+            # Get the azurerm version from the current commit
+            current_version=$(grep 'version = "~>' main.tf | sed 's/.*~> \(.*\)"/\1/')
+            
+            if [ "$current_version" != "$prev_version" ]; then
+              prev_commit=$commit
+              prev_version=$current_version
+              break
+            fi
+          done
+          
+          echo "Previous commit with azurerm version change: $prev_commit"
+          echo "Previous azurerm version: $prev_version"
+          
+          # Set the commit and version for later steps
+          echo "::set-output name=prev_commit::$prev_commit"
+          echo "::set-output name=prev_version::$prev_version"
 
       - name: Checkout the previous commit
         run: |
-          git checkout ${{ steps.get_previous_commit.outputs.prev_commit }}
-
-      - name: Checkout the main branch
-        run: |
-          git checkout main  # Switch back to the main branch
-
-      - name: Get the azurerm version from the previous commit
-        id: get_prev_version
-        run: |
-          # Extract the azurerm version from main.tf
-          PREV_VERSION=$(grep 'version = "~>' main.tf | sed 's/.*~> \(.*\)"/\1/')
-          echo "Previous azurerm version: $PREV_VERSION"
-          echo "::set-output name=prev_version::$PREV_VERSION"
+          git checkout ${{ steps.find_previous_commit.outputs.prev_commit }}
 
       - name: Revert to the previous azurerm version
         run: |
           # Update main.tf with the previous version of azurerm
-          sed -i 's/version = "~> .*/version = "~> ${{ steps.get_prev_version.outputs.prev_version }}"/' main.tf
+          sed -i 's/version = "~> .*/version = "~> ${{ steps.find_previous_commit.outputs.prev_version }}"/' main.tf
 
-      - name: Commit the changes
+      - name: Check if changes were made
+        id: check_changes
+        run: |
+          git diff --exit-code || echo "Changes detected in main.tf"
+          
+      - name: Commit and Push the changes if any
+        if: steps.check_changes.outputs.exit_code != 0
         run: |
           git config --global user.name "GitHub Actions"
           git config --global user.email "actions@github.com"
           
           # Commit the reverted version
           git add main.tf
-          git commit -m "Revert azurerm version to ${{ steps.get_prev_version.outputs.prev_version }}"
+          git commit -m "Revert azurerm version to ${{ steps.find_previous_commit.outputs.prev_version }}"
           
           # Push changes back to the repository
           git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }} HEAD:main
+
 
 
 # name: Manual Rollback Azurerm Version
