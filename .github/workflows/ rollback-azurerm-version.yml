@@ -23,6 +23,10 @@ jobs:
         run: |
           git checkout ${{ steps.get_previous_commit.outputs.prev_commit }}
 
+      - name: Checkout the main branch
+        run: |
+          git checkout main  # Switch back to the main branch
+
       - name: Get the azurerm version from the previous commit
         id: get_prev_version
         run: |
@@ -47,8 +51,6 @@ jobs:
           
           # Push changes back to the repository
           git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }} HEAD:main
-
-
 
 
 # name: Manual Rollback Azurerm Version
