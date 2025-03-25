@@ -1,10 +1,10 @@
-name: Manual Rollback
+name: Manual Rollback Azurerm Version
 
 on:
   workflow_dispatch:
     inputs:
-      commit_hash:
-        description: 'Enter the commit hash to revert'
+      previous_version:
+        description: 'Enter the previous azurerm version to revert to'
         required: true
         type: string
 
@@ -16,8 +16,18 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v2
 
-      - name: Revert commit
+      - name: Revert azurerm version
         run: |
-          echo "Reverting commit: ${{ github.event.inputs.commit_hash }}"
-          git revert -m 1 ${{ github.event.inputs.commit_hash }}  # Revert the commit using the provided commit hash
-          git push origin HEAD  # Push the revert commit back to the repository
+          # Modify main.tf to revert azurerm version
+          echo "Reverting azurerm version to ${{ github.event.inputs.previous_version }}"
+          
+          # Use sed to find the version line in main.tf and replace it with the provided version
+          sed -i 's/version = "~> .*/version = "~> ${{ github.event.inputs.previous_version }}"/' main.tf
+
+      - name: Commit changes
+        run: |
+          git config --global user.name "GitHub Actions"
+          git config --global user.email "actions@github.com"
+          git add main.tf
+          git commit -m "Revert azurerm version to ${{ github.event.inputs.previous_version }}"
+          git push origin HEAD
