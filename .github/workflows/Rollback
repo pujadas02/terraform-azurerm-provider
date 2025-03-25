@@ -1,0 +1,23 @@
+name: Manual Rollback
+
+on:
+  workflow_dispatch:
+    inputs:
+      commit_hash:
+        description: 'Enter the commit hash to revert'
+        required: true
+        type: string
+
+jobs:
+  rollback:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      - name: Revert commit
+        run: |
+          echo "Reverting commit: ${{ github.event.inputs.commit_hash }}"
+          git revert -m 1 ${{ github.event.inputs.commit_hash }}  # Revert the commit using the provided commit hash
+          git push origin HEAD  # Push the revert commit back to the repository
